@@ -1,0 +1,7 @@
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - echo "Mock script. This is because MARKX can't be built in Docker."

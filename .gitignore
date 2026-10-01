@@ -1,0 +1,25 @@
+# Build outputs. src/build.sh wipes and regenerates the whole tree each run,
+# so none of these are source.
+src/chroot
+src/new_building_os
+src/image
+src/dist
+*.iso
+*.squashfs
+*.torrent
+*.sha256
+
+# Fetch/download artifacts left behind by wget and friends.
+wget-log
+wget-log.*
+*.log
+*.bak
+
+# OS and editor noise.
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# A `curl ... > NUL` probe run from WSL creates a real file named NUL.
+NUL
