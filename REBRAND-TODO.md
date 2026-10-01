@@ -27,8 +27,13 @@ with the current values, all eight URLs are accepted, and `example.org`,
 asset-URL guard was likewise tested — the three real GitHub archive URLs pass
 and a `&` query string fails.
 
-- [ ] Confirm `MARKX_GITHUB_OWNER` / `MARKX_GITHUB_REPO` are the real
+- [x] Confirm `MARKX_GITHUB_OWNER` / `MARKX_GITHUB_REPO` are the real
       repository, and that it exists and is public
+      — verified via the GitHub API on 2026-10-01: `preetbiswas12/Mark-x`
+      exists, is public, `default_branch = main`. The original value was
+      `markx` (no hyphen), which 404s; corrected to `Mark-x`. That change
+      alone was not enough — 63 hardcoded `github.com/preetbiswas12/markx`
+      links across the installer slides also had to be corrected.
 - [ ] `TARGET_UPGRADE_URL_BASE` and `TARGET_DOWNLOAD_URL_BASE` both point at
       GitHub Releases. GitHub serves arbitrary paths under
       `/releases/download/<tag>/...` but **not** the `<base>/<version>/<file>`
@@ -39,6 +44,30 @@ and a `&` query string fails.
 - [ ] Create `docs/` in the repo, or point `TARGET_DOCS_URL` elsewhere.
       **The installer's Help slide now links to this URL too**, so a dead link
       there is user-facing rather than merely cosmetic
+
+### Link status verified against the pushed repo (2026-10-01)
+
+Source tree pushed to `main` as `ab4d00d`. Each link below was probed
+through the GitHub API rather than assumed:
+
+| Link | Where it ships | Status |
+|---|---|---|
+| `<repo>` | `HOMEPAGE` / `TARGET_HOME_URL` | 200 |
+| `blob/main/LICENSE` | ISO README | 200 — only because of the fallback below |
+| `issues` | `BUG_REPORT_URL` | 200 |
+| `discussions` | `SUPPORT_URL` in `/etc/os-release` | **404** — repo reports `has_discussions: false` |
+| `tree/main/docs` | Help slide ×21 langs, app-store Help, ISO README | **404** — no `docs/` |
+| `blob/main/PRIVACY.md` | `PRIVACY_URL` in `/etc/os-release` | **404** — no `PRIVACY.md` |
+| `releases/download` | `markx upgrade`, `do-anduinos-autorepair` | **404** — repo has 0 releases |
+
+`SUPPORT_URL` is the cheapest fix and needs no code: repository *Settings →
+Features → enable Discussions*. The other three need content written or a
+different target URL.
+
+`TARGET_BUILD_BRANCH` was also calling `git rev-parse` unguarded. On the WSL
+build host (`~/markx` is not a git checkout) that exits 128, leaving the
+variable empty and rendering the ISO README's license link as
+`.../blob//LICENSE`. It now falls back to `main`.
 
 ---
 
