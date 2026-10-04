@@ -25,6 +25,12 @@ function clean() {
     sudo umount new_building_os/run || sudo umount -lf new_building_os/run || true
     sudo rm -rf new_building_os || true
     judge "Clean up rootfs"
+    # A failed EFI step leaves efiboot.img mounted at image/isolinux/efi,
+    # because its && chain skips its own umount. Detach it first — otherwise
+    # `rm -rf` would delete through the live mount and then fail on the
+    # mountpoint directory itself, leaving a loop device pointing at a
+    # deleted inode.
+    sudo umount image/isolinux/efi 2>/dev/null || sudo umount -lf image/isolinux/efi 2>/dev/null || true
     sudo rm -rf image || true
     judge "Clean up image"
     sudo rm -f $TARGET_NAME.iso || true
@@ -285,14 +291,38 @@ EOF
 
     pushd $SCRIPT_DIR/image
     print_ok "Creating EFI boot image on /isolinux/efiboot.img..."
+
+    # --target is mandatory. Without it grub-install defaults to the i386-pc
+    # (BIOS) target, ignores --efi-directory entirely, and dies with
+    # "install device isn't specified" because it wants a whole disk.
+    local efi_args=(--target=x86_64-efi --efi-directory=efi --removable --no-nvram)
+
+    # --uefi-secure-boot additionally needs the Microsoft-signed shim + signed
+    # GRUB pair. Kali ships shim-signed but has no grub-efi-amd64-signed at all,
+    # so only ask for it when the signed stack is genuinely on this host.
+    if [ -e /usr/lib/shim/shimx64.efi.signed ] || [ -e /usr/lib/shim/shimx64.efi.signed.latest ]; then
+        efi_args+=(--uefi-secure-boot)
+    else
+        print_warn "No signed shim on this host — EFI image will not support Secure Boot"
+    fi
+
     (
-        cd isolinux && \
-        dd if=/dev/zero of=efiboot.img bs=1M count=10 && \
-        sudo mkfs.vfat efiboot.img && \
-        mkdir efi && \
-        sudo mount efiboot.img efi && \
-        sudo grub-install --efi-directory=efi --uefi-secure-boot --removable --no-nvram && \
-        sudo umount efi && \
+        cd isolinux
+        # A previous failure leaves efiboot.img still mounted. Detach before
+        # rewriting the backing file, otherwise dd writes through the mount.
+        if mountpoint -q efi 2>/dev/null; then
+            sudo umount efi || sudo umount -lf efi
+        fi
+        rm -rf efi
+        dd if=/dev/zero of=efiboot.img bs=1M count=10
+        sudo mkfs.vfat efiboot.img
+        mkdir efi
+        sudo mount efiboot.img efi
+        if ! sudo grub-install "${efi_args[@]}"; then
+            sudo umount efi 2>/dev/null || true
+            exit 1
+        fi
+        sudo umount efi
         rm -rf efi
     )
     judge "Create EFI boot image"
