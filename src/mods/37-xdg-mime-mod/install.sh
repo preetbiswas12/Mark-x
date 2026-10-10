@@ -5,10 +5,18 @@ set -u                  # treat unset variable as error
 # Calendar with Gnome Calendar
 xdg-mime default org.gnome.Calendar.desktop text/calendar
 # Web with Mozila Firefox
-xdg-mime default firefox-esr.desktop x-scheme-handler/http
-xdg-mime default firefox-esr.desktop text/html
-xdg-mime default firefox-esr.desktop application/xhtml+xml
-xdg-mime default firefox-esr.desktop x-scheme-handler/https
+# The desktop id comes from args.sh because FIREFOX_PROVIDER decides it. Mozilla's
+# own repo installs "firefox" (firefox.desktop); only the PPA installs "firefox-esr".
+# This block used to hardcode firefox-esr.desktop, which produced a mimeapps.list
+# -- copied to /etc/skel at the end of this script -- whose http/https handlers
+# named a desktop file that was never installed.
+if [ -n "$FIREFOX_DESKTOP_ID" ]; then
+    for mime in x-scheme-handler/http text/html application/xhtml+xml x-scheme-handler/https; do
+        xdg-mime default "$FIREFOX_DESKTOP_ID" "$mime"
+    done
+else
+    print_warn "FIREFOX_PROVIDER=none - leaving web mime types to whatever the desktop detects"
+fi
 # images with shotwell
 xdg-mime default org.gnome.Shotwell-Viewer.desktop image/jpeg # jpeg
 xdg-mime default org.gnome.Shotwell-Viewer.desktop image/jpg
@@ -142,7 +150,9 @@ xdg-mime default org.gnome.TextEditor.desktop text/plain
 xdg-mime default transmission-gtk.desktop application/x-bittorrent
 xdg-mime default transmission-gtk.desktop application/x-utorrent
 # deb with gnome-software
-xdg-mime default gnome-software.desktop application/vnd.debian.binary-package
+# The installed id is org.gnome.Software.desktop; plain gnome-software.desktop
+# was never present, so .deb files had no default handler.
+xdg-mime default org.gnome.Software.desktop application/vnd.debian.binary-package
 
 print_ok "Copying root's default applications to /etc/skel"
 mkdir -p /etc/skel/.config

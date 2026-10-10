@@ -258,6 +258,26 @@ if [[ "$FIREFOX_PROVIDER" == "snap" && "$STORE_PROVIDER" != "snap" ]]; then
     exit 1
 fi
 
+# The .desktop id that FIREFOX_PROVIDER actually installs. This is NOT always
+# "firefox-esr.desktop" -- the provider decides both the package and the id:
+#   official_apt -> packages.mozilla.org "firefox"  -> firefox.desktop
+#   deb          -> mozillateam PPA "firefox-esr"   -> firefox-esr.desktop
+#   flatpak      -> org.mozilla.firefox             -> org.mozilla.firefox.desktop
+#   snap         -> firefox_firefox.desktop
+#   none         -> no browser, so no id
+# Consumed by mod 37 (default file associations) and mod 35 (taskbar and
+# Start-menu pins). These two used to hardcode firefox-esr.desktop independently,
+# so with official_apt every fresh user got a mimeapps.list whose http/https
+# handler and taskbar pin pointed at a desktop file that does not exist.
+case "$FIREFOX_PROVIDER" in
+    official_apt) export FIREFOX_DESKTOP_ID="firefox.desktop" ;;
+    deb)          export FIREFOX_DESKTOP_ID="firefox-esr.desktop" ;;
+    flatpak)      export FIREFOX_DESKTOP_ID="org.mozilla.firefox.desktop" ;;
+    snap)         export FIREFOX_DESKTOP_ID="firefox_firefox.desktop" ;;
+    none)         export FIREFOX_DESKTOP_ID="" ;;
+    *)            echo "Error: unknown FIREFOX_PROVIDER: $FIREFOX_PROVIDER"; exit 1 ;;
+esac
+
 # Optional build-time mirror for the Firefox APT source. When set, the host in
 # the sources file is rewritten to this. Only meaningful for "deb" (the PPA) or
 # "official_apt" (packages.mozilla.org). Leave empty to use upstream directly.

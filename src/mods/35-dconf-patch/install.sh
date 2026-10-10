@@ -9,12 +9,29 @@ set -u                  # treat unset variable as error
 
 print_ok "Loading dconf settings"
 
+# dconf.ini is a static file, so the provider-specific Firefox desktop id is
+# substituted into a temp copy rather than templating the whole thing. Mod 37
+# reads the same variable for file associations; when the two disagree you get
+# a dead taskbar pin next to a dead default browser.
+DCONF_INI="$(mktemp)"
+if [ -n "${FIREFOX_DESKTOP_ID:-}" ]; then
+    sed "s/firefox-esr\.desktop/$FIREFOX_DESKTOP_ID/g" ./dconf.ini > "$DCONF_INI"
+else
+    # FIREFOX_PROVIDER=none: strip the browser out of the favourite/pinned lists
+    # instead of leaving an empty entry behind.
+    sed -e "s/{'id': 'firefox-esr\.desktop'}, //g" \
+        -e "s/'firefox-esr\.desktop', //g" \
+        -e "s/'firefox-esr\.desktop'//g" \
+        ./dconf.ini > "$DCONF_INI"
+fi
+
 print_ok "Exporting dbus session"
 export $(dbus-launch)
 judge "Export dbus session"
 
 print_ok "Loading dconf settings for org.gnome"
-dconf load /org/gnome/ < ./dconf.ini
+dconf load /org/gnome/ < "$DCONF_INI"
+rm -f "$DCONF_INI"
 judge "Load dconf settings for org.gnome"
 
 # print_ok "Patching dconf settings for dash-to-panel"
