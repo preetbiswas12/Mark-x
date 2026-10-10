@@ -162,8 +162,13 @@ apt install $INTERACTIVE \
 judge "Install ibus"
 
 print_ok "Installing gnome fonts..."
+# fonts-inter provides the UI font set in 35-dconf-patch. Inter is the closest
+# freely-licensed match to Segoe UI, which the Fluent icon/cursor/GTK themes
+# are imitating -- without it those themes render in the Ubuntu default and the
+# desktop stops reading as Windows-adjacent. Lives in questing/universe, which
+# 01-apt-source-mod enables.
 apt install $INTERACTIVE \
-    fonts-noto-cjk fonts-noto-core fonts-noto-mono fonts-noto-color-emoji --no-install-recommends
+    fonts-inter fonts-noto-cjk fonts-noto-core fonts-noto-mono fonts-noto-color-emoji --no-install-recommends
 judge "Install gnome fonts"
 
 print_ok "Installing gnome printer support..."
